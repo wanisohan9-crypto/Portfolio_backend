@@ -1,10 +1,9 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 
@@ -19,22 +18,18 @@ def contact():
     message = data.get('message')
     
     try:
-        sender_email = os.getenv('EMAIL_USER')
-        sender_password = os.getenv('EMAIL_PASS')
+        sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
+        recipient_email = os.getenv('RECIPIENT_EMAIL')
         
-        msg = MIMEMultipart()
-        msg['From'] = sender_email
-        msg['To'] = sender_email
-        msg['Subject'] = f'Portfolio Contact from {name}'
+        mail_message = Mail(
+            from_email=recipient_email,
+            to_emails=recipient_email,
+            subject=f'Portfolio Contact from {name}',
+            html_content=f'<strong>Name:</strong> {name}<br><strong>Email:</strong> {email}<br><strong>Message:</strong> {message}'
+        )
         
-        body = f'Name: {name}\nEmail: {email}\nMessage: {message}'
-        msg.attach(MIMEText(body, 'plain'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(msg)
-        server.quit()
+        sg = SendGridAPIClient(sendgrid_api_key)
+        response = sg.send(mail_message)
         
         return jsonify({'message': 'Email sent successfully'}), 200
     except Exception as e:
